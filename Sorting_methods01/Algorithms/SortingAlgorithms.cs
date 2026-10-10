@@ -12,8 +12,8 @@ namespace Lab4Sorting {
 
       int n = arr.Length;
       for (int i = 0; i < n - 1; ++i) {
+        ++iterations;
         for (int j = 0; j < n - 1 - i; ++j) {
-          ++iterations;
           bool needSwap = ascending ? arr[j] > arr[j + 1] : arr[j] < arr[j + 1];
           if (needSwap) {
             double temp = arr[j];
@@ -34,11 +34,11 @@ namespace Lab4Sorting {
       Stopwatch sw = Stopwatch.StartNew();
 
       for (int i = 1; i < arr.Length; ++i) {
+        ++iterations;
         double key = arr[i];
         int j = i - 1;
 
          while (j >= 0)  {
-           ++iterations;
            bool needShift = ascending ? arr[j] > key : arr[j] < key;
            if (needShift) {
              arr[j + 1] = arr[j];
@@ -65,11 +65,11 @@ namespace Lab4Sorting {
       bool swapped = true;
 
        while (left < right && swapped) {
+         ++iterations;
          swapped = false;
 
          // Проход слева направо
           for (int i = left; i < right; ++i) {
-            ++iterations;
             bool needSwap = ascending ? arr[i] > arr[i + 1] : arr[i] < arr[i + 1];
             if (needSwap) {
               double temp = arr[i];
@@ -82,7 +82,6 @@ namespace Lab4Sorting {
 
           // Проход справа налево
           for (int i = right; i > left; --i) {
-            ++iterations;
             bool needSwap = ascending ? arr[i - 1] > arr[i] : arr[i - 1] < arr[i];
             if (needSwap) {
               double temp = arr[i];
@@ -112,6 +111,7 @@ namespace Lab4Sorting {
 
     private static void QuickSortRecursive(double[] arr, int low, int high, bool ascending, ref long iterations) {
       if (low < high) {
+        ++iterations;
         int pi = Partition(arr, low, high, ascending, ref iterations);
         QuickSortRecursive(arr, low, pi - 1, ascending, ref iterations);
         QuickSortRecursive(arr, pi + 1, high, ascending, ref iterations);
@@ -123,7 +123,6 @@ namespace Lab4Sorting {
       int i = low - 1;
 
       for (int j = low; j < high; ++j) {
-        ++iterations;
         bool needSwap = ascending ? arr[j] <= pivot : arr[j] >= pivot;
         if (needSwap) {
           ++i;
@@ -158,7 +157,7 @@ namespace Lab4Sorting {
       return new SortResult("BOGO сортировка", arr, iterations, sw.Elapsed.TotalMilliseconds);
     }
 
-    private static bool IsSorted(double[] arr, bool ascending) {
+    public static bool IsSorted(double[] arr, bool ascending) {
       for (int i = 1; i < arr.Length; ++i) {
         if (ascending) {
           if (arr[i - 1] > arr[i]) return false;

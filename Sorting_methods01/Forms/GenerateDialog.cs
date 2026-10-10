@@ -27,9 +27,9 @@ namespace Lab4Sorting {
       nudCount = new NumericUpDown {
         Location = new System.Drawing.Point(160, 18),
         Width = 100,
-        Minimum = 20,     
-        Maximum = 50,      
-        Value = 20       
+        Minimum = 1,     
+        Maximum = 1000,      
+        Value = 25       
       };
       Controls.Add(nudCount);
 
@@ -60,7 +60,7 @@ namespace Lab4Sorting {
       GeneratedData = new double[count]; // ← было int[count]
       for (int i = 0; i < count; ++i) {
         // Дробные и отрицательные значения в диапазоне [-100; 100)
-        double value = rnd.NextDouble() * 200.0 - 100.0;
+        double value = 20.0 + rnd.NextDouble() * 30.0;
         value = Math.Round(value, 2);  // округление до 2 знаков
         GeneratedData[i] = value;
       }

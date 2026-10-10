@@ -20,9 +20,41 @@ namespace Lab4Sorting {
       dataGridViewInput.Columns.Add("colIndex", "№");
       dataGridViewInput.Columns.Add("colValue", "Значение");
       dataGridViewInput.Columns[0].ReadOnly = true;
-      dataGridViewInput.AllowUserToAddRows = false;
+      dataGridViewInput.AllowUserToAddRows = true;
       dataGridViewInput.AllowUserToDeleteRows = true;
     }
+
+    private void dataGridViewInput_CellValidating(object sender, DataGridViewCellValidatingEventArgs e) {
+    if (dataGridViewInput.Columns[e.ColumnIndex].Name != "colValue")
+        return;
+
+    string input = e.FormattedValue?.ToString() ?? "";
+    if (string.IsNullOrWhiteSpace(input))
+        return;
+
+    // Разрешает: 25, 25.5, -10.25. Запрещает: 25,5  /  25 30  /  abc  /  25.5.5
+    if (!System.Text.RegularExpressions.Regex.IsMatch(input, @"^-?\d+(\.\d+)?$"))
+    {
+        MessageBox.Show(
+            $"Некорректное значение: \"{input}\".\n" +
+            "Введите одно число. Дробная часть — через точку.\n" +
+            "Примеры: 25, 25.5",
+            "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        e.Cancel = true;
+        return;
+    }
+
+    double value = double.Parse(input, System.Globalization.CultureInfo.InvariantCulture);
+
+    if (value < 20.0 || value > 50.0)
+    {
+        MessageBox.Show(
+            $"Значение {value} вне диапазона [20; 50].",
+            "Ошибка ввода", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        e.Cancel = true;
+        return;
+    }
+}
 
     // ---------- Генерация данных ----------
     private void generateItem_Click(object sender, EventArgs e) {
@@ -39,7 +71,7 @@ namespace Lab4Sorting {
     private void FillGrid(double[] data) {
       dataGridViewInput.Rows.Clear();
        for (int i = 0; i < data.Length; ++i) {
-         dataGridViewInput.Rows.Add(i + 1, data[i].ToString("0.###"));
+         dataGridViewInput.Rows.Add(i + 1, data[i].ToString("0.###", System.Globalization.CultureInfo.InvariantCulture));
        }
      }
 
@@ -77,7 +109,7 @@ namespace Lab4Sorting {
                var val = reader.GetValue(i);
                if (val == null) continue;
 
-               string text = val.ToString().Trim().Replace(',', '.');
+               string text = val.ToString().Trim();
 
                if (double.TryParse(text,
                  System.Globalization.NumberStyles.Any,
@@ -124,16 +156,11 @@ namespace Lab4Sorting {
     // ---------- Основной расчёт ----------
   private void calculateItem_Click(object sender, EventArgs e) {
     // 1. Считываем данные из таблицы
-    if (!TryReadDataFromGrid(out double[] data, out string error)) {
-      MessageBox.Show(error, "Ошибка ввода",
-        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      return;
-    }
-
-    if (data.Length == 0) {
-      MessageBox.Show("Нет данных для сортировки.", "Ошибка",
-        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      return;
+    if (!TryReadDataFromGrid(out double[] data, out string error))
+    {
+        MessageBox.Show(error, "Ошибка ввода",
+            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return;
     }
 
     // 2. Проверяем выбор алгоритмов
@@ -143,10 +170,11 @@ namespace Lab4Sorting {
     if (chkShaker.Checked) selectedAlgorithms.Add(SortingAlgorithms.ShakerSort);
     if (chkQuick.Checked) selectedAlgorithms.Add(SortingAlgorithms.QuickSort);
 
-    if (selectedAlgorithms.Count == 0 && !chkBogo.Checked) {
-      MessageBox.Show("Выберите хотя бы один алгоритм сортировки.", "Ошибка",
-        MessageBoxButtons.OK, MessageBoxIcon.Warning);
-      return;
+    if (selectedAlgorithms.Count == 0 && !chkBogo.Checked)
+    {
+        MessageBox.Show("Выберите хотя бы один алгоритм сортировки.", "Ошибка",
+            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return;
     }
 
     // 3. Направление сортировки
@@ -156,80 +184,104 @@ namespace Lab4Sorting {
     rtbResults.Clear();
     panelVisualization.Controls.Clear();
 
+    // ============================================================
+    // 5. ПРОВЕРКА: массив уже отсортирован?
+    // Если да — не запускаем ни один алгоритм, показываем сообщение.
+    // ============================================================
+    if (SortingAlgorithms.IsSorted(data, ascending))
+    {
+        rtbResults.AppendText("=== РЕЗУЛЬТАТЫ СОРТИРОВКИ ===\n");
+        rtbResults.AppendText($"Направление: {(ascending ? "по возрастанию" : "по убыванию")}\n");
+        rtbResults.AppendText($"Исходный массив ({data.Length} эл.): " +
+                              string.Join(", ", data.Select(x => x.ToString("0.###"))) + "\n\n");
+        rtbResults.AppendText("Массив уже отсортирован. Сортировка не требуется.\n");
+        return;
+    }
+
     var results = new List<SortResult>();
 
-    // 5.1. Обычные алгоритмы — на всём массиве
-    foreach (var algo in selectedAlgorithms) {
-      try {
-        SortResult result = algo(data, ascending);
-        results.Add(result);
-      } catch (Exception ex) {
-        rtbResults.AppendText($"Ошибка выполнения алгоритма: {ex.Message}\n");
-      }
-    }
-
-    // 5.2. BOGO — на подмассиве
-    if (chkBogo.Checked) {
-      const int BogoSize = 6;
-
-      if (data.Length < BogoSize) {
-        rtbResults.AppendText($"BOGO: недостаточно данных (нужно {BogoSize}).\n");
-      } else {
-        double[] bogoSub = data.Take(BogoSize).ToArray();
-
-        try {
-          SortResult bogoResult = SortingAlgorithms.BogoSort(bogoSub, ascending);
-          bogoResult.AlgorithmName = $"BOGO сортировка (первые {BogoSize} из {data.Length})";
-          results.Add(bogoResult);
-        } catch (Exception ex) {
-          rtbResults.AppendText($"Ошибка BOGO: {ex.Message}\n");
+    // 6. Обычные алгоритмы — на всём массиве
+    foreach (var algo in selectedAlgorithms)
+    {
+        try
+        {
+            SortResult result = algo(data, ascending);
+            results.Add(result);
         }
-      }
+        catch (Exception ex)
+        {
+            rtbResults.AppendText($"Ошибка выполнения алгоритма: {ex.Message}\n");
+        }
     }
 
-    // 6. Вывод результатов
+    // 7. BOGO — на всём массиве, но с лимитом времени
+    if (chkBogo.Checked) {
+      try {
+        // Запускаем BOGO на том же массиве, что и остальные алгоритмы.
+        // Внутри BogoSort уже стоит лимит 5 секунд — зависания не будет.
+        SortResult bogoResult = SortingAlgorithms.BogoSort(data, ascending);
+        results.Add(bogoResult);
+      } catch (Exception ex) {
+        rtbResults.AppendText($"Ошибка BOGO: {ex.Message}\n");
+      }
+     }
+
+    // 8. Вывод результатов
     DisplayResults(results, data, ascending);
   }
 
-    private bool TryReadDataFromGrid(out double[] data, out string error) {
-      data = null;
-      error = null;
-      var list = new List<double>();
+  private bool TryReadDataFromGrid(out double[] data, out string error) {
+    data = null;
+    error = null;
+    var list = new List<double>();
 
-      foreach (DataGridViewRow row in dataGridViewInput.Rows) {
+    foreach (DataGridViewRow row in dataGridViewInput.Rows)
+    {
+        // Пропускаем "новую" пустую строку DataGridView
         if (row.IsNewRow) continue;
 
         var cell = row.Cells["colValue"].Value;
-        if (cell == null || string.IsNullOrWhiteSpace(cell.ToString())) {
-          error = $"Пустая ячейка в строке {row.Index + 1}.";
-          return false;
+
+        // --- ПРОВЕРКА 1: пустая ячейка ---
+        if (cell == null || string.IsNullOrWhiteSpace(cell.ToString()))
+        {
+            error = $"Пустая ячейка в строке {row.Index + 1}.";
+            return false;
         }
 
-        // Заменяем запятую на точку — на случай русской раскладки
-        string text = cell.ToString().Trim().Replace(',', '.');
+        // Дробная часть — только через точку (проверено в CellValidating)
+        string text = cell.ToString().Trim();
 
         if (!double.TryParse(text,
-          System.Globalization.NumberStyles.Any,
+          System.Globalization.NumberStyles.AllowLeadingSign |
+          System.Globalization.NumberStyles.AllowDecimalPoint,
           System.Globalization.CultureInfo.InvariantCulture,
-          out double value))
-        {
-        error = $"Некорректное значение в строке {row.Index + 1}: \"{cell}\". " +
-                 "Ожидается число.";
-        return false;
+          out double value)) {
+            error = $"Некорректное значение в строке {row.Index + 1}: \"{cell}\". " +
+                     "Ожидается число (дробная часть — через точку).";
+         return false;
+        } 
+
+      // --- ПРОВЕРКА 3: значение в диапазоне [20; 50] ---
+      if (value < 20.0 || value > 50.0) {
+            error = $"Значение {value} в строке {row.Index + 1} вне диапазона [20; 50].";
+            return false;
         }
 
         list.Add(value);
-      }
-
-      // Проверка количества — ПОСЛЕ цикла
-      if (list.Count < 20 || list.Count > 50) {
-        error = $"Количество чисел должно быть от 20 до 50. Сейчас: {list.Count}.";
-        return false;
-      }
-
-      data = list.ToArray();
-      return true;
     }
+
+    // --- ПРОВЕРКА 4: массив не пустой ---
+    // Количество чисел теперь ЛЮБОЕ, но хотя бы одно должно быть.
+    if (list.Count == 0)
+    {
+        error = "Нет данных для сортировки.";
+        return false;
+    }
+
+    data = list.ToArray();
+    return true;
+}
 
     private void DisplayResults(List<SortResult> results, double[] original, bool ascending) {
       rtbResults.AppendText("=== РЕЗУЛЬТАТЫ СОРТИРОВКИ ===\n");
@@ -248,8 +300,12 @@ namespace Lab4Sorting {
         rtbResults.AppendText($"  Результат:  " +
                               string.Join(", ", r.SortedArray.Select(x => x.ToString("0.###"))) + "\n");
 
-        if (r.AlgorithmName.StartsWith("BOGO"))
-          rtbResults.AppendText("  BOGO сортирует только часть массива (подмассив)\n");
+        if (r.AlgorithmName.StartsWith("BOGO")) {
+          if (r.ElapsedMilliseconds >= 5000)
+            rtbResults.AppendText("  BOGO не успел отсортировать массив за 5 секунд\n");
+          else
+          rtbResults.AppendText("  BOGO успел отсортировать массив за отведённое время\n");
+        }
 
         if (fastest != null && ReferenceEquals(r, fastest))
           rtbResults.AppendText("  >>> САМЫЙ БЫСТРЫЙ АЛГОРИТМ <<<\n");

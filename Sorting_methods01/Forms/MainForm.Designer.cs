@@ -67,6 +67,7 @@ namespace Lab4Sorting {
       this.dataGridViewInput.Name = "dataGridViewInput";
       this.dataGridViewInput.Size = new System.Drawing.Size(300, 400);
       this.dataGridViewInput.TabIndex = 0;
+      this.dataGridViewInput.CellValidating += new System.Windows.Forms.DataGridViewCellValidatingEventHandler(this.dataGridViewInput_CellValidating);
 
        // menuStrip
        this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
